@@ -16,7 +16,7 @@ class ScanSignScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Scan & Sign',
+          'Scan Deal',
           style: TextStyle(
             color: AppColors.white,
             fontSize: 18,
@@ -26,34 +26,61 @@ class ScanSignScreen extends StatelessWidget {
         centerTitle: false,
       ),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header spacing
-            const SizedBox(height: 24),
-
-            // Main content area (placeholder for now)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  // Future sections will be added here
-                  // - QR scanner
-                  // - Deal details display
-                  // - Signature confirmation
-                  // - Sign button
-                  Center(
-                    child: Text(
-                      'Scan & Sign Screen\n(Atomic Settlement)',
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        color: AppColors.lightGrey,
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height - kToolbarHeight,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Simulate Scan Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final qrData = "deal_id:12345|amount:500|receiver:Rahul|note:Dinner";
+                      print(qrData);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.red,
+                      elevation: 4,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      textAlign: TextAlign.center,
+                    ),
+                    child: const Text(
+                      'Simulate Scan',
+                      style: TextStyle(
+                        color: AppColors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 28),
+
+              // Instruction text
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Scan a deal QR to review and sign',
+                  style: TextStyle(
+                    color: AppColors.lightGrey,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

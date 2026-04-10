@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/quick_action_button.dart';
 import '../models/transaction.dart';
-import 'receive_screen.dart';
-import 'sync_screen.dart';
 import 'create_deal_screen.dart';
 import 'scan_sign_screen.dart';
 import 'deal_history_screen.dart';
@@ -57,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
           MaterialPageRoute(builder: (context) => const CreateDealScreen()),
         );
         break;
-      case 'Receive':
+      case 'Scan Deal':
         // ATOMIC SETTLEMENT: Navigate to Scan & Sign screen
         Navigator.push(
           context,
@@ -226,12 +224,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          // Receive Button (with download arrow icon)
+          // Scan Deal Button (with QR code scanner icon)
           Expanded(
             child: QuickActionButton(
-              icon: Icons.arrow_downward,
-              label: 'Receive',
-              onTap: () => _handleQuickAction('Receive'),
+              icon: Icons.qr_code_scanner,
+              label: 'Scan Deal',
+              onTap: () => _handleQuickAction('Scan Deal'),
               height: 140,
               isMainAction: true,
             ),
