@@ -98,13 +98,13 @@ class AlgorandService {
 
   /// Format microAlgos to ALGO
   static String formatAlgo(int microAlgos) {
-    final algos = microAlgos / 1_000_000;
+    final algos = microAlgos / 1000000;
     return algos.toStringAsFixed(6).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
   }
 
   /// Format balance display
   static String getFormattedBalance(int microAlgos) {
-    final algos = microAlgos / 1_000_000;
+    final algos = microAlgos / 1000000;
     if (algos >= 1000) {
       return '${(algos / 1000).toStringAsFixed(2)}K Ⓐ';
     }
@@ -113,7 +113,7 @@ class AlgorandService {
 
   /// Get status indicator (emoji based on balance)
   static String getBalanceStatus(int microAlgos) {
-    final algos = microAlgos / 1_000_000;
+    final algos = microAlgos / 1000000;
     if (algos < 1) {
       return '⚠️ Low'; // Less than 1 ALGO
     } else if (algos < 10) {

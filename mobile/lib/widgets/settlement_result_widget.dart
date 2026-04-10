@@ -76,7 +76,7 @@ class _SettlementResultWidgetState extends State<SettlementResultWidget> {
                     ),
                   ),
                   if (_confirmed)
-                    Icon(Icons.blockchain, color: Colors.blue, size: 24),
+                    Icon(Icons.verified, color: Colors.blue, size: 24),
                 ],
               ),
               SizedBox(height: 24),

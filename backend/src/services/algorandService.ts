@@ -145,8 +145,8 @@ export class AlgorandService {
       // Create app call transaction with settlement data
       const txn = algosdk.makeApplicationCallTxnFromObject({
         from: this.creatorAddress,
-        index: this.appId,
-        onComplete: algosdk.OnComplete.NoOpOC,
+        appIndex: this.appId,
+        onComplete: 0, // NoOp
         appArgs: [
           new Uint8Array(Buffer.from('SETTLE')),
           new Uint8Array(Buffer.from(`tx_${uuidv4()}`)),
@@ -160,7 +160,6 @@ export class AlgorandService {
           algosdk.encodeUint64(payload.taxAmount),
           algosdk.encodeUint64(payload.gstRate),
         ],
-        foreignAccounts: [payload.buyerAddress, payload.sellerAddress],
         suggestedParams: params,
       });
 
@@ -242,7 +241,7 @@ export class AlgorandService {
   }> {
     try {
       const status = await this.algodClient.status().do();
-      const genesis = await this.algodClient.getGenesis().do();
+      const genesis = await this.algodClient.genesis().do();
 
       return {
         network: process.env.ALGO_NETWORK || 'testnet',
