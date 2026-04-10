@@ -4,6 +4,9 @@ import '../widgets/quick_action_button.dart';
 import '../models/transaction.dart';
 import 'receive_screen.dart';
 import 'sync_screen.dart';
+import 'create_deal_screen.dart';
+import 'scan_sign_screen.dart';
+import 'deal_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -46,13 +49,19 @@ class _HomeScreenState extends State<HomeScreen> {
     print('$action tapped');
     // Map actions to navigation
     switch (action) {
-      case 'Pay':
-        print('Navigate to Pay screen');
-        break;
-      case 'Receive':
+      case 'Create Deal':
+        print('Create Deal clicked');
+        // ATOMIC SETTLEMENT: Navigate to Create Deal screen
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ReceiveScreen()),
+          MaterialPageRoute(builder: (context) => const CreateDealScreen()),
+        );
+        break;
+      case 'Receive':
+        // ATOMIC SETTLEMENT: Navigate to Scan & Sign screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ScanSignScreen()),
         );
         break;
       case 'Add Money':
@@ -62,15 +71,37 @@ class _HomeScreenState extends State<HomeScreen> {
         print('Open Favorites');
         break;
       case 'Transactions':
-        print('Navigate to Transactions screen');
-        break;
-      case 'Sync':
+        // ATOMIC SETTLEMENT: Navigate to Deal History screen
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const SyncScreen()),
+          MaterialPageRoute(builder: (context) => const DealHistoryScreen()),
         );
         break;
+      case 'Sync':
+        // ATOMIC SETTLEMENT: Mock UI refresh (setState)
+        _mockRefreshUI();
+        break;
     }
+  }
+
+  // Mock refresh UI for Sync button
+  void _mockRefreshUI() {
+    print('🔄 Mock UI refresh triggered');
+    setState(() {
+      // Simulate UI refresh/sync
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('✓ UI refreshed'),
+        duration: const Duration(seconds: 1),
+        backgroundColor: AppColors.red,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   @override
@@ -184,12 +215,12 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // Pay Button (with QR code icon)
+          // Create Deal Button (with handshake icon)
           Expanded(
             child: QuickActionButton(
-              icon: Icons.qr_code_2,
-              label: 'Pay',
-              onTap: () => _handleQuickAction('Pay'),
+              icon: Icons.handshake,
+              label: 'Create Deal',
+              onTap: () => _handleQuickAction('Create Deal'),
               height: 140,
               isMainAction: true,
             ),
