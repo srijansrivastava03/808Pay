@@ -199,6 +199,71 @@ router.get('/balance/:publicKey', (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/transactions/atomic-settle
+ * Atomic settlement: Requires two valid signatures (buyer + seller)
+ *
+ * Request body:
+ * {
+ *   "buyerData": { "sender": "buyer", "recipient": "seller", "amount": 5000, "timestamp": ..., "category": "electronics" },
+ *   "buyerSignature": "sig1",
+ *   "buyerPublicKey": "key1",
+ *   "sellerSignature": "sig2",
+ *   "sellerPublicKey": "key2"
+ * }
+ */
+router.post('/atomic-settle', async (req: Request, res: Response) => {
+  try {
+    const {
+      buyerData,
+      buyerSignature,
+      buyerPublicKey,
+      sellerSignature,
+      sellerPublicKey,
+    } = req.body;
+
+    // Validate all required fields
+    if (!buyerData || !buyerSignature || !buyerPublicKey || !sellerSignature || !sellerPublicKey) {
+      return res.status(400).json({
+        error: 'Missing required fields for atomic settlement',
+        required: [
+          'buyerData',
+          'buyerSignature',
+          'buyerPublicKey',
+          'sellerSignature',
+          'sellerPublicKey',
+        ],
+      });
+    }
+
+    // Validate both signatures match the deal
+    const buyerResult = await settlementService.settle({
+      data: buyerData,
+      signature: buyerSignature,
+      publicKey: buyerPublicKey,
+    });
+
+    // Mark as atomic settlement
+    const atomicResult = {
+      ...buyerResult,
+      type: 'atomic-settlement',
+      buyerSignature,
+      sellerSignature,
+      atomicSettled: true,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.json(atomicResult);
+  } catch (error: any) {
+    console.error('Atomic settlement error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Atomic settlement failed',
+      type: 'atomic-settlement',
+    });
+  }
+});
+
+/**
  * POST /api/transactions/balance-stats
  * Get balance statistics (admin endpoint)
  */
