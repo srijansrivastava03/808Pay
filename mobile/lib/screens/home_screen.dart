@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/quick_action_button.dart';
+import '../widgets/wallet_connection_widget.dart';
 import '../models/transaction.dart';
+import '../services/pera_wallet_service.dart';
 import 'create_deal_screen.dart';
 import 'scan_sign_screen.dart';
 import 'deal_history_screen.dart';
@@ -111,6 +114,17 @@ class _HomeScreenState extends State<HomeScreen> {
             // 🔝 HEADER BAR
             _buildHeader(),
             
+            const SizedBox(height: 24),
+
+            // 🔐 PERA WALLET CONNECTION
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: WalletConnectionWidget(
+                onConnected: () => _showSnackBar('Wallet connected!'),
+                onDisconnected: () => _showSnackBar('Wallet disconnected'),
+              ),
+            ),
+
             const SizedBox(height: 40),
 
             // 🔴 MAIN ACTION BUTTONS (Pay & Receive)
@@ -129,6 +143,18 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  // Helper to show snackbar
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
       ),
     );
   }

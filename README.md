@@ -4,6 +4,17 @@
 
 **808Pay** is a blockchain-based offline payment system that enables secure transactions without internet connectivity. Users can generate cryptographically signed payment QR codes offline, and merchants can settle them when online using Algorand smart contracts.
 
+## 🚀 Team Getting Started?
+
+**New to the project?** Start here:
+
+- **[TEAM_SETUP_GUIDE.md](./TEAM_SETUP_GUIDE.md)** - Complete step-by-step setup (5-15 min)
+- **[QUICK_COMMANDS.md](./QUICK_COMMANDS.md)** - Copy-paste ready commands
+
+Choose your path:
+- **Local Development** (easiest) - Run Algorand in Docker on your machine
+- **Testnet** (for testing with real ALGO) - Use Algorand public testnet
+
 ## Architecture
 
 ```

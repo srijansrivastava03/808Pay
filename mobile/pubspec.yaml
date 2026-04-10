@@ -14,7 +14,6 @@ dependencies:
 
   # QR Code
   qr_flutter: ^4.0.0
-  qr_code_scanner: ^1.0.0
 
   # HTTP Client
   http: ^1.0.0
@@ -45,6 +44,9 @@ dependencies:
 
   # Connectivity
   connectivity_plus: ^5.0.0
+
+  # Pera Wallet (via deep links)
+  # Integration uses Pera's native deep link protocol
 
 dev_dependencies:
   flutter_test:

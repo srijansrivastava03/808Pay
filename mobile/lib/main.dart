@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/payment_screen.dart';
 import 'screens/history_screen.dart';
+import 'services/pera_wallet_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,10 +15,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '808Pay',
-      theme: AppTheme.darkTheme,
-      home: const MainScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => PeraWalletService()..initialize(),
+        ),
+      ],
+      child: MaterialApp(
+        title: '808Pay',
+        theme: AppTheme.darkTheme,
+        home: const MainScreen(),
+      ),
     );
   }
 }
