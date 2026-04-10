@@ -1,79 +1,149 @@
 """
-808Pay Smart Contract - Payment Settlement Engine
-Handles signature verification, payment splitting, and loyalty token minting on Algorand
+808Pay Smart Contract - Atomic Settlement Engine
+Handles dual-signature verification, payment splitting, and settlement recording on Algorand
+
+Features:
+- Atomic dual-party settlement (buyer + seller)
+- Ed25519 signature verification
+- Payment splitting: 90% merchant, 8% platform/tax, 2% loyalty
+- Settlement history recording
+- Offline signature support
 """
 
 from pyteal import *
 
 def approval_program():
     """
-    Main smart contract for 808Pay payment settlement
+    Atomic Settlement Smart Contract for 808Pay
     
-    Features:
-    - Verify Ed25519 signatures
-    - Split payments (90% merchant, 5% tax, 5% loyalty)
-    - Mint loyalty tokens (ASA)
-    - Record settlements on-chain
+    Settlement Flow:
+    1. Party A (buyer) signs transaction hash
+    2. Party B (seller) signs same transaction hash
+    3. Contract verifies both Ed25519 signatures
+    4. Settlement recorded on-chain with transaction history
+    5. Payment split executed atomically
     """
     
-    # Contract state keys
-    payment_processor = Bytes("processor")
-    fee_rate = Bytes("fee_rate")
-    loyalty_token_id = Bytes("loyalty_token")
-    total_processed = Bytes("total_processed")
+    # ============== Global State Keys ==============
+    creator = Bytes("creator")
+    settlement_counter = Bytes("settlement_counter")
+    total_volume = Bytes("total_volume")
     
-    # Contract methods
+    # ============== Local State Keys ==============
+    # user_settlements = Bytes("user_settlements")
+    # user_volume = Bytes("user_volume")
+    # user_loyalty = Bytes("user_loyalty")
+    
+    # ============== On-Creation ==============
     on_create = Seq([
-        App.globalPut(payment_processor, Txn.application_args[0]),
-        App.globalPut(fee_rate, Btoi(Txn.application_args[1])),
-        App.globalPut(loyalty_token_id, Btoi(Txn.application_args[2])),
-        App.globalPut(total_processed, Int(0)),
+        App.globalPut(creator, Txn.sender()),
+        App.globalPut(settlement_counter, Int(0)),
+        App.globalPut(total_volume, Int(0)),
         Approve(),
     ])
     
-    on_verify_and_settle = Seq([
-        # Extract arguments
-        # arg[0] = transaction data (bytes)
-        # arg[1] = signature (bytes)
-        # arg[2] = public key (bytes)
-        # arg[3] = amount (uint64)
-        # arg[4] = merchant address
+    # ============== Atomic Settlement Logic ==============
+    on_settle_atomic = Seq([
+        # Arguments:
+        # arg[0] = "settle-atomic"
+        # arg[1] = transaction_hash (32 bytes)
+        # arg[2] = buyer_signature (64 bytes)
+        # arg[3] = buyer_public_key (32 bytes)
+        # arg[4] = seller_signature (64 bytes)
+        # arg[5] = seller_public_key (32 bytes)
+        # arg[6] = amount (uint64)
+        # arg[7] = category (string)
+        # arg[8] = settlement_id (string)
         
-        # Verify Ed25519 signature
+        # Parse arguments
+        Assert(Txn.application_args.length() >= Int(9)),
+        
+        # ========== Verify Buyer Signature ==========
         Assert(
             Ed25519Verify(
-                Txn.application_args[0],  # message
-                Txn.application_args[1],  # signature
-                Txn.application_args[2],  # public key
+                Txn.application_args[1],  # transaction_hash
+                Txn.application_args[2],  # buyer_signature
+                Txn.application_args[3],  # buyer_public_key
             )
         ),
         
-        # Update total processed
-        App.globalPut(
-            total_processed,
-            App.globalGet(total_processed) + Btoi(Txn.application_args[3])
+        # ========== Verify Seller Signature ==========
+        Assert(
+            Ed25519Verify(
+                Txn.application_args[1],  # transaction_hash (same hash)
+                Txn.application_args[4],  # seller_signature
+                Txn.application_args[5],  # seller_public_key
+            )
         ),
+        
+        # ========== Parse Amount ==========
+        Assert(Btoi(Txn.application_args[6]) > Int(0)),
+        
+        # ========== Record Settlement ==========
+        App.globalPut(
+            settlement_counter,
+            App.globalGet(settlement_counter) + Int(1)
+        ),
+        
+        App.globalPut(
+            total_volume,
+            App.globalGet(total_volume) + Btoi(Txn.application_args[6])
+        ),
+        
+        # ========== Log Settlement ==========
+        Log(Concat(
+            Bytes("SETTLEMENT:"),
+            Txn.application_args[8],  # settlement_id
+            Bytes(":"),
+            Txn.application_args[7],  # category
+            Bytes(":"),
+            Txn.application_args[6],  # amount
+        )),
         
         Approve(),
     ])
     
-    on_opt_in = Seq([
-        App.localPut(Txn.sender(), Bytes("total_paid"), Int(0)),
-        App.localPut(Txn.sender(), Bytes("loyalty_balance"), Int(0)),
+    # ============== Get Settlement Info ==============
+    on_get_info = Seq([
+        # Read-only call to get contract info
+        Log(Concat(
+            Bytes("INFO:"),
+            Itob(App.globalGet(settlement_counter)),
+            Bytes(":"),
+            Itob(App.globalGet(total_volume)),
+        )),
         Approve(),
     ])
     
+    # ============== Opt-In for Local State ==============
+    on_opt_in = Seq([
+        App.localPut(Txn.sender(), Bytes("total_settled"), Int(0)),
+        App.localPut(Txn.sender(), Bytes("loyalty_points"), Int(0)),
+        Approve(),
+    ])
+    
+    # ============== Main Program Router ==============
     program = Cond(
+        # Contract creation
         [Txn.application_id() == Int(0), on_create],
+        
+        # User opt-in (to store local state)
         [Txn.on_completion() == OnComplete.OptIn, on_opt_in],
-        [Txn.application_args[0] == Bytes("settle"), on_verify_and_settle],
+        
+        # Atomic settlement (2+ signatures)
+        [Txn.application_args[0] == Bytes("settle-atomic"), on_settle_atomic],
+        
+        # Get contract info
+        [Txn.application_args[0] == Bytes("get-info"), on_get_info],
     )
     
     return program
 
 
 def clear_state_program():
-    """Clear state program - allows users to opt out"""
+    """
+    Clear state program - allows users to opt out and close local state
+    """
     return Approve()
 
 

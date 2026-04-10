@@ -234,21 +234,20 @@ class _AtomicDealScreenState extends State<AtomicDealScreen> {
               },
             ),
             const SizedBox(height: 8),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(label: Text('Services'), value: 'services'),
-                ButtonSegment(label: Text('Luxury'), value: 'luxury'),
-              ],
-              selected: selectedCategory == 'services' ||
-                      selectedCategory == 'luxury'
-                  ? {selectedCategory}
-                  : <String>{},
-              onSelectionChanged: (value) {
-                if (value.isNotEmpty) {
-                  setState(() => selectedCategory = value.first);
-                }
-              },
-            ),
+            // Note: Services/Luxury only shown if needed
+            if (selectedCategory == 'services' || selectedCategory == 'luxury')
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(label: Text('Services'), value: 'services'),
+                  ButtonSegment(label: Text('Luxury'), value: 'luxury'),
+                ],
+                selected: {selectedCategory},
+                onSelectionChanged: (value) {
+                  if (value.isNotEmpty) {
+                    setState(() => selectedCategory = value.first);
+                  }
+                },
+              ),
             const SizedBox(height: 12),
 
             // GST Rate Display
