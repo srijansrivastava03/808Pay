@@ -15,6 +15,16 @@ interface EncryptedBlob {
   ciphertext: string;
 }
 
+/** Encode a Uint8Array to base64 using native browser APIs. */
+function toBase64(bytes: Uint8Array): string {
+  return btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''));
+}
+
+/** Decode a base64 string to a Uint8Array using native browser APIs. */
+function fromBase64(b64: string): Uint8Array {
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}
+
 async function deriveKey(pin: string, salt: Uint8Array): Promise<CryptoKey> {
   const pinBytes = new TextEncoder().encode(pin);
   const baseKey = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, ['deriveKey']);
@@ -37,18 +47,18 @@ async function encryptMnemonic(mnemonic: string, pin: string): Promise<string> {
     new TextEncoder().encode(mnemonic)
   );
   const blob: EncryptedBlob = {
-    salt: Buffer.from(salt).toString('base64'),
-    iv: Buffer.from(iv).toString('base64'),
-    ciphertext: Buffer.from(ciphertext).toString('base64'),
+    salt: toBase64(salt),
+    iv: toBase64(iv),
+    ciphertext: toBase64(new Uint8Array(ciphertext)),
   };
   return JSON.stringify(blob);
 }
 
 async function decryptMnemonic(encryptedMnemonic: string, pin: string): Promise<string> {
   const blob: EncryptedBlob = JSON.parse(encryptedMnemonic);
-  const salt = Uint8Array.from(Buffer.from(blob.salt, 'base64'));
-  const iv = Uint8Array.from(Buffer.from(blob.iv, 'base64'));
-  const ciphertext = Uint8Array.from(Buffer.from(blob.ciphertext, 'base64'));
+  const salt = fromBase64(blob.salt);
+  const iv = fromBase64(blob.iv);
+  const ciphertext = fromBase64(blob.ciphertext);
   const key = await deriveKey(pin, salt);
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
   return new TextDecoder().decode(plaintext);

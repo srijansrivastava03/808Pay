@@ -2,6 +2,10 @@ import { useEffect, useCallback, useRef } from 'react';
 import { getPendingPayments, updatePaymentStatus } from '../services/offlineQueue';
 import { submitBatch } from '../services/api';
 
+// Delay before attempting sync after going online (ms).
+// Allows the connection to stabilize before hitting the Algorand node.
+const SYNC_DELAY_MS = 2_000;
+
 /**
  * Automatically submits queued offline payments when the browser goes back online.
  */
@@ -35,7 +39,7 @@ export function useAutoSync(onSyncComplete?: () => void) {
   useEffect(() => {
     const handleOnline = () => {
       // Small delay to ensure connection is stable
-      setTimeout(syncPending, 2000);
+      setTimeout(syncPending, SYNC_DELAY_MS);
     };
 
     window.addEventListener('online', handleOnline);

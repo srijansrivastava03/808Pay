@@ -193,18 +193,29 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ receiverInfo, onClose, onSucc
   );
 };
 
-// Fallback params for offline signing (Algorand TestNet defaults)
-// These use a broad validity window so the tx can be submitted when back online
+// Fallback params for offline signing (Algorand TestNet defaults).
+// ROUND_BASE is an estimated recent round that provides a wide validity window.
+// The firstValid/lastValid are checked on submission; if the tx is too old,
+// the node will reject it and the queue entry will be marked as failed.
+// Update this value periodically (~1M rounds per ~2 weeks on TestNet).
+// Algorand TestNet round: approximately 40M as of 2024-12.
+const OFFLINE_ROUND_BASE = 40_000_000;
+const OFFLINE_ROUND_WINDOW = 1_000; // number of rounds the tx stays valid
+
+// TestNet genesis hash (base64) and ID — update these for MainNet deployments
+const TESTNET_GENESIS_HASH = 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=';
+const TESTNET_GENESIS_ID = 'testnet-v1.0';
+const ALGO_MIN_FEE = 1000; // microALGO
+
 async function buildOfflineParams() {
-  const roundBase = 40_000_000; // a safe recent round on testnet; actual validity checked on submit
   return {
-    fee: 1000,
+    fee: ALGO_MIN_FEE,
     flatFee: true,
-    firstValid: roundBase,
-    lastValid: roundBase + 1000,
-    genesisID: 'testnet-v1.0',
-    genesisHash: 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=',
-    minFee: 1000,
+    firstValid: OFFLINE_ROUND_BASE,
+    lastValid: OFFLINE_ROUND_BASE + OFFLINE_ROUND_WINDOW,
+    genesisID: TESTNET_GENESIS_ID,
+    genesisHash: TESTNET_GENESIS_HASH,
+    minFee: ALGO_MIN_FEE,
   };
 }
 

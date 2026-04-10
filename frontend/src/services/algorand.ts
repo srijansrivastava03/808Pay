@@ -48,6 +48,16 @@ export interface SuggestedParams {
   minFee: number;
 }
 
+/** Decode a base64 string to a Uint8Array using native browser APIs. */
+function base64ToUint8Array(b64: string): Uint8Array {
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}
+
+/** Encode a Uint8Array to a base64 string using native browser APIs. */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  return btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''));
+}
+
 /**
  * Build and sign an Algorand payment transaction offline.
  * Returns the signed transaction bytes as a base64 string.
@@ -61,7 +71,7 @@ export function buildAndSignPayment(
 ): string {
   const senderAccount = algosdk.mnemonicToSecretKey(senderMnemonic);
 
-  const genesisHashBytes = Uint8Array.from(Buffer.from(params.genesisHash, 'base64'));
+  const genesisHashBytes = base64ToUint8Array(params.genesisHash);
 
   const txnParams: algosdk.SuggestedParams = {
     fee: params.minFee,
@@ -84,7 +94,7 @@ export function buildAndSignPayment(
   });
 
   const signedTxn = txn.signTxn(senderAccount.sk);
-  return Buffer.from(signedTxn).toString('base64');
+  return uint8ArrayToBase64(signedTxn);
 }
 
 /**
