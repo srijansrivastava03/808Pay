@@ -1,0 +1,61 @@
+name: 808pay
+description: "Blockchain-based offline payment settlement engine for Algorand"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Pera Wallet Integration
+  pera_wallet_flutter: ^1.0.0
+
+  # QR Code
+  qr_flutter: ^4.0.0
+  qr_code_scanner: ^1.0.0
+
+  # HTTP Client
+  http: ^1.0.0
+
+  # State Management
+  provider: ^6.0.0
+
+  # Local Storage
+  shared_preferences: ^2.0.0
+
+  # Date Formatting
+  intl: ^0.19.0
+
+  # UUID generation
+  uuid: ^4.0.0
+
+  # JSON serialization
+  json_serializable: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.0
+  build_runner: ^2.0.0
+  json_serializable: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Add any Flutter assets here
+  assets:
+    - assets/images/
+    - assets/icons/
+
+  # Add any custom fonts here
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
