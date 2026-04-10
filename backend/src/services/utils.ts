@@ -39,7 +39,6 @@ export function buildAndSignPayment(
   note?: string
 ): string {
   const senderAccount = algosdk.mnemonicToSecretKey(senderMnemonic);
-  const genesisHashBytes = new Uint8Array(Buffer.from(params.genesisHash, 'base64'));
 
   const txnParams: algosdk.SuggestedParams = {
     fee: params.minFee,
@@ -47,7 +46,7 @@ export function buildAndSignPayment(
     firstRound: params.firstValid,
     lastRound: params.lastValid,
     genesisID: params.genesisID,
-    genesisHash: params.genesisHash,
+    genesisHash: params.genesisHash, // algosdk v2 expects base64 string
   };
 
   const noteBytes = note ? new TextEncoder().encode(note) : undefined;

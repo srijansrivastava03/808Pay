@@ -79,6 +79,19 @@ export async function unlockWallet(pin: string): Promise<string> {
   return decryptMnemonic(encryptedMnemonic, pin);
 }
 
+/**
+ * Sign an Algorand payment transaction using the stored (encrypted) wallet.
+ * The mnemonic is decrypted in-place and never returned to the caller,
+ * reducing the clear-text exposure window.
+ */
+export async function signPayment(
+  pin: string,
+  signFn: (mnemonic: string) => string
+): Promise<string> {
+  const mnemonic = await unlockWallet(pin);
+  return signFn(mnemonic);
+}
+
 export function clearWallet(): void {
   localStorage.removeItem(WALLET_KEY);
 }

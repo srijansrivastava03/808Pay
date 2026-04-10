@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ScannedPaymentInfo } from './QRScanner';
-import { unlockWallet, getStoredWallet } from '../services/wallet';
+import { signPayment, getStoredWallet } from '../services/wallet';
 import { buildAndSignPayment, algoToMicroAlgo } from '../services/algorand';
 import { enqueuePayment } from '../services/offlineQueue';
 import { fetchParams, submitTransaction } from '../services/api';
@@ -37,23 +37,22 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ receiverInfo, onClose, onSucc
     setMessage('');
 
     try {
-      // Unlock wallet with PIN
-      const mnemonic = await unlockWallet(pin);
       const senderAddress = wallet?.address || '';
       const amountMicroAlgos = algoToMicroAlgo(parseFloat(amount));
 
       // Try to get live params (online path)
       let signedTxnBase64: string;
-      let params;
 
       try {
-        params = await fetchParams();
-        signedTxnBase64 = buildAndSignPayment(
-          mnemonic,
-          receiverInfo.address,
-          amountMicroAlgos,
-          params,
-          note || undefined
+        const params = await fetchParams();
+        signedTxnBase64 = await signPayment(pin, (mnemonic) =>
+          buildAndSignPayment(
+            mnemonic,
+            receiverInfo.address,
+            amountMicroAlgos,
+            params,
+            note || undefined
+          )
         );
 
         // Queue first, then try to submit immediately
@@ -77,12 +76,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ receiverInfo, onClose, onSucc
       } catch (networkErr) {
         // Offline path: build with fallback params
         const fallbackParams = await buildOfflineParams();
-        signedTxnBase64 = buildAndSignPayment(
-          mnemonic,
-          receiverInfo.address,
-          amountMicroAlgos,
-          fallbackParams,
-          note || undefined
+        signedTxnBase64 = await signPayment(pin, (mnemonic) =>
+          buildAndSignPayment(
+            mnemonic,
+            receiverInfo.address,
+            amountMicroAlgos,
+            fallbackParams,
+            note || undefined
+          )
         );
 
         enqueuePayment({
