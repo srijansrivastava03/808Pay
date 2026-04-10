@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/tax_service.dart';
 
 class PaymentCard extends StatelessWidget {
   final TextEditingController amountController;
   final TextEditingController merchantController;
   final bool isLoading;
   final VoidCallback onCreatePayment;
+  final String selectedCategory;
+  final Function(String)? onCategoryChanged;
 
   const PaymentCard({
     Key? key,
@@ -13,6 +16,8 @@ class PaymentCard extends StatelessWidget {
     required this.merchantController,
     required this.isLoading,
     required this.onCreatePayment,
+    this.selectedCategory = 'electronics',
+    this.onCategoryChanged,
   }) : super(key: key);
 
   @override
@@ -30,6 +35,7 @@ class PaymentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Amount Input
           TextField(
             controller: amountController,
             enabled: !isLoading,
@@ -43,14 +49,70 @@ class PaymentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Category Selector
+          Text(
+            'Payment Category',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.red,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.darkGrey,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.red.withOpacity(0.2),
+              ),
+            ),
+            child: DropdownButton<String>(
+              value: selectedCategory,
+              isExpanded: true,
+              underline: const SizedBox(),
+              icon: const Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: Icon(Icons.expand_more, color: AppColors.red),
+              ),
+              onChanged: (String? cat) {
+                if (cat != null && onCategoryChanged != null) {
+                  onCategoryChanged!(cat);
+                }
+              },
+              items: TaxCalculationService.gstRates.keys.map((cat) {
+                final rate = TaxCalculationService.getGstRate(cat);
+                final name = TaxCalculationService.categoryNames[cat] ?? cat;
+                return DropdownMenuItem<String>(
+                  value: cat,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(name, style: const TextStyle(color: AppColors.white)),
+                        Text(
+                          '${rate.toStringAsFixed(0)}% GST',
+                          style: const TextStyle(color: AppColors.red, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Merchant Input
           TextField(
             controller: merchantController,
             enabled: !isLoading,
             keyboardType: TextInputType.text,
             style: const TextStyle(color: AppColors.white),
             decoration: InputDecoration(
-              labelText: 'Merchant Name',
-              hintText: 'Enter merchant name',
+              labelText: 'Recipient Address',
+              hintText: 'Enter merchant address or wallet',
               prefixIcon: const Icon(Icons.store),
               labelStyle: const TextStyle(color: AppColors.red),
             ),
@@ -60,3 +122,4 @@ class PaymentCard extends StatelessWidget {
     );
   }
 }
+
