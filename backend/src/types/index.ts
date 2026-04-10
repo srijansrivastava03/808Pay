@@ -32,6 +32,12 @@ export interface SettleTransactionRequest {
   publicKey: string;
 }
 
+export interface AlgorandTransaction {
+  txId: string;
+  blockNumber: number;
+  confirmed: boolean;
+}
+
 export interface SettlementResult {
   success: boolean;
   transactionId: string;
@@ -45,6 +51,7 @@ export interface SettlementResult {
   recipientBalanceAfter?: number;
   error?: string;
   errorCode?: 'INSUFFICIENT_FUNDS' | 'SIGNATURE_INVALID' | 'INVALID_CATEGORY' | string;
+  algoTransaction?: AlgorandTransaction; // NEW: Algorand blockchain transaction
 }
 
 export interface TransactionStatus {

@@ -3,6 +3,7 @@ import { SettleTransactionRequest, SettlementResult, Transaction } from '../type
 import { transactionStore } from '../store/transactionStore';
 import { verifySignature, isValidPublicKey } from './cryptoService';
 import { taxCalculationService } from './taxCalculationService';
+import { algorandService } from './algorandService';
 
 class SettlementService {
   /**
@@ -73,9 +74,30 @@ class SettlementService {
       // Store transaction
       transactionStore.add(transaction);
 
-      // ⭐ NEW: Deduct from sender's balance
-      await this.deductBalance(publicKey, data.amount);
-      // ⭐ NEW: Add to recipient's balance
+      // ⭐ NEW: Submit to Algorand blockchain
+      let algoResult;
+      try {
+        algoResult = await algorandService.submitSettlement({
+          buyerAddress: data.sender,
+          sellerAddress: data.recipient,
+          amount: data.amount,
+          category: data.category || 'services',
+          buyerSignature: signature,
+          sellerSignature: '', // For atomic: would have second signature
+          merchantAmount: splits.merchant,
+          taxAmount: splits.tax,
+          gstRate,
+        });
+        console.log(`✅ Transaction submitted to Algorand: ${algoResult.txId}`);
+      } catch (algoError) {
+        console.warn('⚠️  Algorand submission failed (continuing with local settlement):', algoError);
+        // Continue with local settlement even if blockchain fails
+        algoResult = null;
+      }
+
+      // Deduct from sender's balance
+      await this.deductBalance(data.sender, data.amount);
+      // Add to recipient's balance
       await this.addBalance(data.recipient, splits.merchant);
 
       console.log('💰 Settlement successful:', transaction.id);
@@ -88,6 +110,9 @@ class SettlementService {
         transactionId: transaction.id,
         message: `Transaction settled successfully with ${gstRate}% GST`,
         splits,
+        algoTransaction: algoResult || undefined,
+        balanceAfter: await this.getUserBalance(data.sender),
+        recipientBalanceAfter: await this.getUserBalance(data.recipient),
       };
     } catch (error: any) {
       console.error('Settlement failed:', error.message);

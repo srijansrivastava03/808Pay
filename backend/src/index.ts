@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import transactionRoutes from './routes/transactions';
+import algorandRoutes from './routes/algorand';
 import errorHandler from './middleware/errorHandler';
 
 dotenv.config();
@@ -26,6 +27,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // Routes
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/algorand', algorandRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

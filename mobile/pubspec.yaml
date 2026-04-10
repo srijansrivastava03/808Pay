@@ -40,6 +40,12 @@ dependencies:
   # Share functionality
   share_plus: ^7.0.0
 
+  # URL Launcher
+  url_launcher: ^6.1.0
+
+  # Connectivity
+  connectivity_plus: ^5.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
