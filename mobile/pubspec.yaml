@@ -1,0 +1,56 @@
+name: pay_808
+description: Flutter mobile app for 808Pay - Algorand-based payment settlement.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # QR Code
+  qr_flutter: ^4.0.0
+  qr_code_scanner: ^1.0.0
+
+  # HTTP Client
+  http: ^1.0.0
+
+  # State Management
+  provider: ^6.0.0
+
+  # Local Storage
+  shared_preferences: ^2.0.0
+
+  # Date Formatting
+  intl: ^0.19.0
+
+  # Icons
+  cupertino_icons: ^1.0.0
+
+  # Environment variables
+  flutter_dotenv: ^5.0.0
+
+  # Cryptography
+  cryptography: ^2.1.0
+
+  # Share functionality
+  share_plus: ^7.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Uncomment and add custom fonts here
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: assets/fonts/CustomFont.ttf
