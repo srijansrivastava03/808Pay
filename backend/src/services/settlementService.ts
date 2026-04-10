@@ -2,14 +2,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { SettleTransactionRequest, SettlementResult, Transaction } from '../types';
 import { transactionStore } from '../store/transactionStore';
 import { verifySignature, isValidPublicKey } from './cryptoService';
+import { taxCalculationService } from './taxCalculationService';
 
 class SettlementService {
   /**
    * Settle a transaction
    * 1. Verify signature
    * 2. Validate data
-   * 3. Calculate splits
-   * 4. Store transaction
+   * 3. Validate category
+   * 4. Calculate splits based on category-specific tax
+   * 5. Store transaction
    */
   async settle(request: SettleTransactionRequest): Promise<SettlementResult> {
     try {
@@ -28,8 +30,18 @@ class SettlementService {
       // Validate transaction data
       this.validateTransactionData(data);
 
-      // Calculate payment splits
-      const splits = this.calculateSplits(data.amount);
+      // Validate category if provided
+      if (data.category && !taxCalculationService.isValidCategory(data.category)) {
+        throw new Error(
+          `Invalid category: ${data.category}. Must be one of: ${taxCalculationService.getAllCategories().map((c) => c.name).join(', ')}`
+        );
+      }
+
+      // Get GST rate for category
+      const gstRate = taxCalculationService.getGstRate(data.category);
+
+      // Calculate payment splits using category-based tax
+      const splits = taxCalculationService.calculateSplits(data.amount, data.category);
 
       // Create transaction record
       const transaction: Transaction = {
@@ -38,6 +50,8 @@ class SettlementService {
         recipient: data.recipient,
         amount: data.amount,
         timestamp: data.timestamp,
+        category: data.category,
+        gstRate,
         data,
         signature,
         publicKey,
@@ -51,11 +65,14 @@ class SettlementService {
       transactionStore.add(transaction);
 
       console.log('💰 Settlement successful:', transaction.id);
+      console.log(`📦 Category: ${data.category || 'default (electronics)'}`);
+      console.log(`🏷️  GST Rate: ${gstRate}%`);
+      console.log(`✂️  Splits - Merchant: ₹${splits.merchant}, Tax: ₹${splits.tax}, Loyalty: ₹${splits.loyalty}`);
 
       return {
         success: true,
         transactionId: transaction.id,
-        message: 'Transaction settled successfully',
+        message: `Transaction settled successfully with ${gstRate}% GST`,
         splits,
       };
     } catch (error: any) {
@@ -65,7 +82,8 @@ class SettlementService {
   }
 
   /**
-   * Calculate payment splits
+   * Calculate payment splits (deprecated - use taxCalculationService instead)
+   * Kept for backward compatibility
    * Merchant: 90%
    * Tax/Regulatory: 5%
    * Loyalty Points: 5%

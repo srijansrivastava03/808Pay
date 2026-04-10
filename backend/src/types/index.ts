@@ -4,6 +4,8 @@ export interface Transaction {
   recipient: string; // Merchant address
   amount: number; // In microAlgos or cents
   timestamp: number; // Unix timestamp
+  category?: string; // Payment category for tax calculation
+  gstRate?: number; // GST rate applied (0-28%)
   data: any; // Original transaction data
   signature: string; // Hex-encoded signature
   publicKey: string; // Hex or base64 encoded public key
@@ -24,6 +26,7 @@ export interface SettleTransactionRequest {
     recipient: string;
     amount: number;
     timestamp: number;
+    category?: string; // Optional: food, medicine, electronics, services, luxury
   };
   signature: string;
   publicKey: string;
@@ -47,6 +50,8 @@ export interface TransactionStatus {
   sender: string;
   recipient: string;
   amount: number;
+  category?: string;
+  gstRate?: number;
   createdAt: Date;
   settledAt?: Date;
   splits?: {
