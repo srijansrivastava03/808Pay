@@ -173,4 +173,52 @@ router.post('/test', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/transactions/balance/:publicKey
+ * Get user's current balance
+ */
+router.get('/balance/:publicKey', (req: Request, res: Response) => {
+  try {
+    const { publicKey } = req.params;
+
+    // TODO: In production, query from blockchain/database
+    // For now, return demo balance
+    const balance = 1000; // Demo: Everyone starts with 1000 USDC
+
+    res.json({
+      publicKey,
+      balance,
+      currency: 'USDC',
+      message: 'In production: Query from Algorand blockchain',
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: error.message || 'Failed to fetch balance',
+    });
+  }
+});
+
+/**
+ * POST /api/transactions/balance-stats
+ * Get balance statistics (admin endpoint)
+ */
+router.post('/balance-stats', (req: Request, res: Response) => {
+  try {
+    // This is a demo endpoint - should be protected in production
+    res.json({
+      message: 'Balance statistics',
+      stats: {
+        note: 'In production: Query from Algorand blockchain',
+        availableUsers: ['user1', 'user2', 'merchant_001'],
+        defaultBalance: 1000,
+        currency: 'USDC',
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: error.message || 'Failed to fetch stats',
+    });
+  }
+});
+
 export default router;

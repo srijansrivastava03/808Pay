@@ -30,6 +30,15 @@ class SettlementService {
       // Validate transaction data
       this.validateTransactionData(data);
 
+      // ⭐ NEW: Check balance before settlement
+      const userBalance = await this.getUserBalance(publicKey);
+      if (userBalance < data.amount) {
+        console.warn(`❌ Insufficient balance: User has ₹${userBalance}, needs ₹${data.amount}`);
+        throw new Error(
+          `Insufficient balance. Available: ₹${userBalance}, Required: ₹${data.amount}`
+        );
+      }
+
       // Validate category if provided
       if (data.category && !taxCalculationService.isValidCategory(data.category)) {
         throw new Error(
@@ -64,6 +73,11 @@ class SettlementService {
       // Store transaction
       transactionStore.add(transaction);
 
+      // ⭐ NEW: Deduct from sender's balance
+      await this.deductBalance(publicKey, data.amount);
+      // ⭐ NEW: Add to recipient's balance
+      await this.addBalance(data.recipient, splits.merchant);
+
       console.log('💰 Settlement successful:', transaction.id);
       console.log(`📦 Category: ${data.category || 'default (electronics)'}`);
       console.log(`🏷️  GST Rate: ${gstRate}%`);
@@ -79,6 +93,60 @@ class SettlementService {
       console.error('Settlement failed:', error.message);
       throw error;
     }
+  }
+
+  /**
+   * Get user's current balance
+   * In production: Query from Algorand blockchain or payment processor
+   * For demo: Use in-memory store
+   */
+  private userBalances: Map<string, number> = new Map();
+
+  private async getUserBalance(publicKey: string): Promise<number> {
+    // TODO: In production, query from:
+    // - Algorand blockchain
+    // - Payment processor API
+    // - Database ledger
+
+    // For demo/testing: Return from in-memory map
+    // Initialize with 1000 USDC for testing
+    if (!this.userBalances.has(publicKey)) {
+      this.userBalances.set(publicKey, 1000); // Demo: 1000 USDC starting balance
+    }
+    return this.userBalances.get(publicKey) || 0;
+  }
+
+  /**
+   * Deduct balance after successful settlement
+   */
+  private async deductBalance(publicKey: string, amount: number): Promise<void> {
+    const currentBalance = await this.getUserBalance(publicKey);
+    this.userBalances.set(publicKey, currentBalance - amount);
+    console.log(`💳 Balance updated: ${publicKey} now has ₹${currentBalance - amount}`);
+  }
+
+  /**
+   * Add balance (for incoming payments)
+   */
+  private async addBalance(publicKey: string, amount: number): Promise<void> {
+    const currentBalance = await this.getUserBalance(publicKey);
+    this.userBalances.set(publicKey, currentBalance + amount);
+    console.log(`💳 Balance updated: ${publicKey} now has ₹${currentBalance + amount}`);
+  }
+
+  /**
+   * Get balance statistics
+   */
+  getBalanceStats() {
+    const users = Array.from(this.userBalances.entries());
+    return {
+      totalUsers: users.length,
+      balances: users.map(([pk, balance]) => ({
+        publicKey: pk.substring(0, 16) + '...', // Truncate for display
+        balance,
+      })),
+      totalBalance: users.reduce((sum, [_, balance]) => sum + balance, 0),
+    };
   }
 
   /**

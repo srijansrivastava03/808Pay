@@ -41,7 +41,10 @@ export interface SettlementResult {
     tax: number;
     loyalty: number;
   };
+  balanceAfter?: number;
+  recipientBalanceAfter?: number;
   error?: string;
+  errorCode?: 'INSUFFICIENT_FUNDS' | 'SIGNATURE_INVALID' | 'INVALID_CATEGORY' | string;
 }
 
 export interface TransactionStatus {
