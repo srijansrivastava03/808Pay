@@ -36,6 +36,9 @@ dependencies:
   # JSON serialization
   json_serializable: ^6.0.0
 
+  # Connectivity check
+  connectivity_plus: ^4.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
