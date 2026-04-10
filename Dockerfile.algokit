@@ -1,0 +1,24 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install AlgoKit
+RUN pip install --no-cache-dir algokit pyteal algorand-python-sdk
+
+# Copy contract files
+COPY contracts/ ./contracts/
+
+# Expose ports
+# 4001 - Algorand node
+# 4002 - Indexer
+EXPOSE 4001 4002
+
+# Start AlgoKit sandbox
+CMD ["algokit", "localnet", "start"]

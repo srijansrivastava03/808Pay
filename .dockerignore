@@ -1,0 +1,15 @@
+.dockerignore
+node_modules
+npm-debug.log
+dist
+.git
+.gitignore
+.env
+.env.local
+.DS_Store
+*.pyc
+__pycache__
+.pytest_cache
+.venv
+contracts/artifacts
+contracts/.algokit

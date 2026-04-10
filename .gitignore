@@ -1,0 +1,58 @@
+# Node.js
+node_modules/
+npm-debug.log*
+package-lock.json
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+.pytest_cache/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.packages
+pubspec.lock
+build/
+
+# Docker
+.algokit/
+algokit_sandbox_*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Git
+.git/

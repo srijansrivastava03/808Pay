@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: 808pay-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      - ALGORAND_SERVER=http://algokit:4001
+      - ALGORAND_TOKEN=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      - CONTRACT_APP_ID=${CONTRACT_APP_ID}
+      - PAYMENT_PROCESSOR_ADDRESS=${PAYMENT_PROCESSOR_ADDRESS}
+    volumes:
+      - ./src:/app/src
+      - ./dist:/app/dist
+    depends_on:
+      - algokit
+    networks:
+      - 808pay-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # AlgoKit Service (Smart Contract Environment)
+  algokit:
+    build:
+      context: .
+      dockerfile: Dockerfile.algokit
+    container_name: 808pay-algokit
+    ports:
+      - "4001:4001"
+      - "4002:4002"
+    environment:
+      - ALGORAND_NETWORK=testnet
+    volumes:
+      - ./contracts:/app/contracts
+      - algokit-data:/root/.algokit
+    networks:
+      - 808pay-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Reverse Proxy (nginx)
+  nginx:
+    image: nginx:alpine
+    container_name: 808pay-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - 808pay-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  808pay-network:
+    driver: bridge
+
+volumes:
+  algokit-data:
+    driver: local

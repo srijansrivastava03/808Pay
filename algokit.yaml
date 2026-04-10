@@ -1,0 +1,21 @@
+name: 808Pay
+description: Blockchain-based offline payment settlement engine for Algorand
+version: 1.0.0
+
+projects:
+  - contracts/payment_settlement
+
+localnet:
+  docker_compose_file: docker-compose.yml
+  follow_logs: true
+  compose_file_hash_algorand: sha256:1234567890abcdef
+
+build:
+  python_version: "3.9"
+
+deploy:
+  network: testnet
+  creator_mnemonic: ""  # Will be set from .env
+
+artifacts:
+  output_dir: contracts/payment_settlement/artifacts
