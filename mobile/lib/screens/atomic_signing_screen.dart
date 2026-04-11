@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pay_808/widgets/signature_progress_widget.dart';
 import 'package:pay_808/widgets/party_card_widget.dart';
+import 'package:pay_808/services/pera_wallet_service_v2.dart';
+import 'package:pay_808/services/transaction_queue_service.dart';
 import 'atomic_settlement_confirmation_screen.dart';
 
 class AtomicSigningScreen extends StatefulWidget {
@@ -22,32 +24,83 @@ class AtomicSigningScreen extends StatefulWidget {
 class _AtomicSigningScreenState extends State<AtomicSigningScreen> {
   late Map<String, dynamic> _deal;
   bool isSigning = false;
+  late PeraWalletServiceV2 _peraService;
+  late TransactionQueueService _queueService;
 
   @override
   void initState() {
     super.initState();
     _deal = Map.from(widget.atomicDeal);
+    _peraService = PeraWalletServiceV2();
+    _queueService = TransactionQueueService();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    await _peraService.initialize();
+    await _queueService.initialize();
+    
+    // Auto-connect to Pera wallet
+    if (!_peraService.isConnected) {
+      await _peraService.connectWallet();
+    }
   }
 
   void _handleSign() async {
     setState(() => isSigning = true);
 
     try {
-      // Sign the transaction
-      final signature = 'sig_${DateTime.now().millisecondsSinceEpoch}';
+      // Get Pera address
+      if (!_peraService.isConnected) {
+        throw Exception('Pera Wallet not connected. Please connect first.');
+      }
+
+      final peraAddress = _peraService.userAddress;
+      if (peraAddress == null) {
+        throw Exception('Could not get Pera wallet address');
+      }
+
+      // Sign transaction with Pera Wallet
+      final signResult = await _peraService.signTransaction(
+        dealId: _deal['dealId'] ?? 'deal_${DateTime.now().millisecondsSinceEpoch}',
+        amount: _deal['amount'].toString(),
+        receiver: _deal['participants']['seller'] ?? '',
+        category: _deal['category'] ?? 'general',
+        note: _deal['note'],
+      );
 
       // Add signature to deal
-      _deal['requiredSignatures'].add(signature);
+      _deal['requiredSignatures'].add(signResult['signature']);
+      _deal['signers'] ??= [];
+      _deal['signers'].add({
+        'address': peraAddress,
+        'signature': signResult['signature'],
+        'role': widget.userRole,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
 
-      // Update signing status
-      if (_deal['requiredSignatures'].length >=
-          _deal['requiredSignatureCount']) {
+      // Queue transaction if both signatures present
+      if (_deal['requiredSignatures'].length >= _deal['requiredSignatureCount']) {
         _deal['signingStatus'] = 'FULLY_SIGNED';
+        
+        // Queue for later settlement
+        await _queueService.queueTransaction(
+          _deal['dealId'] ?? 'deal_${DateTime.now().millisecondsSinceEpoch}',
+          _deal['amount'].toString(),
+          _deal['participants']['seller'] ?? 'unknown',
+          _deal['category'] ?? 'general',
+          signResult['signature'],
+          peraAddress,
+          signResult['data'],
+          peraAddress,
+        );
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('✅ Both signatures collected! Ready to settle.'),
+              content: Text('✅ Both signatures collected!\n📱 Transaction queued for settlement'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
             ),
           );
           // Navigate to confirmation screen
@@ -70,8 +123,9 @@ class _AtomicSigningScreenState extends State<AtomicSigningScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  '✅ You signed! Waiting for ${widget.userRole == 'buyer' ? 'seller' : 'buyer'} to sign.'),
+                  '✅ Signed with Pera!\n⏳ Waiting for ${widget.userRole == 'buyer' ? 'seller' : 'buyer'} to sign.'),
               backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -79,11 +133,13 @@ class _AtomicSigningScreenState extends State<AtomicSigningScreen> {
 
       setState(() {});
     } catch (e) {
+      print('❌ Signing error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Signing failed: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }

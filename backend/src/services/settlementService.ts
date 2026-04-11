@@ -31,10 +31,18 @@ class SettlementService {
       // Validate transaction data
       this.validateTransactionData(data);
 
-      // ⭐ NEW: Check balance before settlement
+      // ⭐ Check balance before settlement
       const userBalance = await this.getUserBalance(publicKey);
+      console.log(`💰 Balance check: ${publicKey} has ₹${userBalance}`);
+      
       if (userBalance < data.amount) {
-        console.warn(`❌ Insufficient balance: User has ₹${userBalance}, needs ₹${data.amount}`);
+        console.warn(
+          `❌ INSUFFICIENT BALANCE\n` +
+          `   User: ${publicKey}\n` +
+          `   Has: ₹${userBalance}\n` +
+          `   Needs: ₹${data.amount}\n` +
+          `   Shortage: ₹${data.amount - userBalance}`
+        );
         throw new Error(
           `Insufficient balance. Available: ₹${userBalance}, Required: ₹${data.amount}`
         );
@@ -121,24 +129,37 @@ class SettlementService {
   }
 
   /**
-   * Get user's current balance
-   * In production: Query from Algorand blockchain or payment processor
-   * For demo: Use in-memory store
+   * Get user's current balance from Algorand blockchain
+   * Falls back to in-memory store if blockchain unavailable
    */
   private userBalances: Map<string, number> = new Map();
 
   private async getUserBalance(publicKey: string): Promise<number> {
-    // TODO: In production, query from:
-    // - Algorand blockchain
-    // - Payment processor API
-    // - Database ledger
-
-    // For demo/testing: Return from in-memory map
-    // Initialize with 1000 USDC for testing
-    if (!this.userBalances.has(publicKey)) {
-      this.userBalances.set(publicKey, 1000); // Demo: 1000 USDC starting balance
+    try {
+      // Try to get balance from Algorand testnet first
+      const algoBalance = await algorandService.getAccountBalance(publicKey);
+      const rupeeBalance = this.convertAlgoToRupees(algoBalance);
+      console.log(`💾 Balance from Algorand: ${publicKey} has ₹${rupeeBalance} (${algoBalance} microAlgos)`);
+      this.userBalances.set(publicKey, rupeeBalance);
+      return rupeeBalance;
+    } catch (error) {
+      console.warn('⚠️  Could not fetch balance from Algorand, using local storage:', error);
+      // Fallback to in-memory store for testing
+      if (!this.userBalances.has(publicKey)) {
+        this.userBalances.set(publicKey, 100000); // Demo: ₹100,000 starting balance
+      }
+      return this.userBalances.get(publicKey) || 0;
     }
-    return this.userBalances.get(publicKey) || 0;
+  }
+
+  /**
+   * Convert Algorand microAlgos to Rupees (testnet exchange rate)
+   * Testnet: 1 ALGO = ₹100 (for testing purposes)
+   */
+  private convertAlgoToRupees(microAlgos: number): number {
+    const algos = microAlgos / 1_000_000; // Convert microAlgos to ALGOs
+    const rupeeRate = 100; // 1 ALGO = ₹100 (test rate)
+    return Math.floor(algos * rupeeRate);
   }
 
   /**

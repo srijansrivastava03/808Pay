@@ -4,7 +4,9 @@ import '../theme/app_theme.dart';
 import '../widgets/quick_action_button.dart';
 import '../widgets/wallet_connection_widget.dart';
 import '../models/transaction.dart';
-import '../services/pera_wallet_service.dart';
+import '../services/pera_wallet_service_v2.dart';
+import '../services/settlement_sync_service.dart';
+import '../services/transaction_queue_service.dart';
 import 'create_deal_screen.dart';
 import 'scan_sign_screen.dart';
 import 'deal_history_screen.dart';
@@ -79,9 +81,64 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 'Sync':
-        // ATOMIC SETTLEMENT: Mock UI refresh (setState)
-        _mockRefreshUI();
+        // Trigger real settlement sync
+        _handleManualSync();
         break;
+    }
+  }
+
+  Future<void> _handleManualSync() async {
+    print('🔄 Manual sync triggered');
+    
+    try {
+      final syncService = Provider.of<SettlementSyncService>(context, listen: false);
+      final queueService = Provider.of<TransactionQueueService>(context, listen: false);
+      
+      // Show loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('🔄 Syncing queued transactions...'),
+          backgroundColor: AppColors.warning,
+          duration: const Duration(seconds: 10),
+        ),
+      );
+      
+      // Get pending transactions
+      final pending = await queueService.getPendingTransactions();
+      print('📊 Pending transactions: ${pending.length}');
+      
+      if (pending.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ No pending transactions to sync'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+      
+      // Try to sync
+      await syncService.syncQueuedTransactions();
+      
+      // Show success
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Transactions synced! Check transaction history.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      
+    } catch (e) {
+      print('❌ Sync error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Sync failed: $e'),
+          backgroundColor: AppColors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -301,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          // Row 2: Favorites, Sync
+          // Row 2: Favorites, Sync (with pending badge)
           Row(
             children: [
               Expanded(
@@ -314,11 +371,43 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: QuickActionButton(
-                  icon: actions[3]['icon'] as IconData,
-                  label: actions[3]['label'] as String,
-                  onTap: () => _handleQuickAction(actions[3]['label'] as String),
-                  height: 90,
+                child: FutureBuilder<int>(
+                  future: _getPendingTransactionCount(),
+                  builder: (context, snapshot) {
+                    final pendingCount = snapshot.data ?? 0;
+                    return Stack(
+                      children: [
+                        QuickActionButton(
+                          icon: actions[3]['icon'] as IconData,
+                          label: pendingCount > 0 
+                            ? '${actions[3]['label']}\n($pendingCount)' 
+                            : actions[3]['label'] as String,
+                          onTap: () => _handleQuickAction(actions[3]['label'] as String),
+                          height: 90,
+                        ),
+                        if (pendingCount > 0)
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '$pendingCount',
+                                style: const TextStyle(
+                                  color: AppColors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -326,6 +415,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Future<int> _getPendingTransactionCount() async {
+    try {
+      final queueService = Provider.of<TransactionQueueService>(context, listen: false);
+      final pending = await queueService.getPendingTransactions();
+      return pending.length;
+    } catch (e) {
+      print('Error getting pending count: $e');
+      return 0;
+    }
   }
 
   // ========== RECENT TRANSACTIONS SECTION ==========

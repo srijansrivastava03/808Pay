@@ -30,56 +30,44 @@ export class AlgorandService {
     // Get configuration from environment
     const network = process.env.ALGO_NETWORK || 'testnet';
     const token = process.env.ALGORAND_TOKEN || '';
-    const server = process.env.ALGORAND_SERVER || '';
-    const indexerServer = process.env.ALGORAND_INDEXER || '';
+    
+    // Use AlgoKit testnet endpoints (matches Pera Wallet testnet)
+    // https://lora.algokit.io/testnet/fund
+    let server = 'https://lora1-api.algokit.io';
+    let indexerServer = 'https://lora1-idx.algokit.io';
 
     // Initialize clients
     this.algodClient = new algosdk.Algodv2(token, server, '');
-
-    // For testnet, use AlgoExplorer's indexer if not provided
-    const indexer = indexerServer || 'https://testnet-algorand.api.purestake.io/idx2';
-    this.indexerClient = new algosdk.Indexer(token, indexer, '');
+    this.indexerClient = new algosdk.Indexer(token, indexerServer, '');
 
     this.appId = parseInt(process.env.PAYMENT_APP_ID || '0');
     this.creatorAddress = process.env.CREATOR_ADDRESS || '';
     this.creatorMnemonic = process.env.CREATOR_MNEMONIC || '';
 
+    // Log initialization status
     console.log(`✅ AlgorandService initialized (${network})`);
+    console.log(`   Server: ${server}`);
+    console.log(`   Indexer: ${indexerServer}`);
+    console.log(`📝 Transaction Mode: User-signed (no backend credentials needed)`);
+    console.log(`   Each user signs their own transactions with their Pera Wallet`);
   }
 
   /**
    * Submit settlement transaction to Algorand
+   * Uses the user's pre-signed transaction (no backend signing needed)
    */
   async submitSettlement(payload: SettlementPayload): Promise<AlgoTransaction> {
     try {
-      console.log('📤 Submitting settlement to Algorand...');
+      console.log('📤 Submitting user-signed settlement to Algorand...');
+      console.log(`   Buyer: ${payload.buyerAddress}`);
+      console.log(`   Seller: ${payload.sellerAddress}`);
+      console.log(`   Amount: ₹${payload.amount} (Merchant: ₹${payload.merchantAmount}, Tax: ₹${payload.taxAmount})`);
 
-      // Get network parameters
+      // Get network parameters for building transaction
       const params = await this.algodClient.getTransactionParams().do();
 
-      // If app ID is 0, we'll do a payment transaction instead
-      // (for demo, this simulates a settled payment)
-      if (this.appId === 0) {
-        return await this._submitPaymentTransaction(payload, params);
-      }
-
-      // Otherwise use app call (when contract is deployed)
-      return await this._submitAppCallTransaction(payload, params);
-    } catch (error) {
-      console.error('❌ Algorand submission error:', error);
-      throw new Error(`Settlement submission failed: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * Submit as payment transaction (demo mode)
-   */
-  private async _submitPaymentTransaction(
-    payload: SettlementPayload,
-    params: algosdk.SuggestedParams
-  ): Promise<AlgoTransaction> {
-    try {
-      // For demo: create a note-based transaction
+      // Create payment transaction FROM BUYER TO SELLER
+      // This uses the user's address (not backend creator)
       const noteData = {
         type: '808PAY_SETTLEMENT',
         buyerAddress: payload.buyerAddress,
@@ -94,9 +82,9 @@ export class AlgorandService {
 
       const note = new TextEncoder().encode(JSON.stringify(noteData));
 
-      // Create payment transaction from creator to seller (demo)
+      // Build payment transaction from buyer to seller
       const txn = algosdk.makePaymentTxnWithSuggestedParams(
-        this.creatorAddress,
+        payload.buyerAddress,  // ← USER's address (not backend creator)
         payload.sellerAddress,
         BigInt(payload.merchantAmount),
         undefined,
@@ -104,10 +92,12 @@ export class AlgorandService {
         params
       );
 
-      // Sign transaction
-      const creatorAccount = algosdk.mnemonicToSecretKey(this.creatorMnemonic);
-      const signedTxn = algosdk.signTransaction(txn, creatorAccount.sk);
-      const encodedTxn = signedTxn.blob;
+      // The transaction is already signed by the user's device
+      // We use the signature provided by the user
+      // Reconstruct the signed transaction from user's signature
+      const encodedTxn = this._reconstructSignedTransaction(txn, payload.buyerSignature);
+
+      console.log('📡 Broadcasting to Algorand network...');
 
       // Submit to network
       const response = await this.algodClient.sendRawTransaction(encodedTxn).do();
@@ -129,9 +119,44 @@ export class AlgorandService {
         confirmed: true,
       };
     } catch (error) {
-      console.error('❌ Payment transaction error:', error);
+      console.error('❌ Algorand submission error:', error);
+      throw new Error(`Settlement submission failed: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Reconstruct signed transaction from hex-encoded signature
+   * The user has already signed the transaction on their device
+   */
+  private _reconstructSignedTransaction(txn: algosdk.Transaction, signatureHex: string): Uint8Array {
+    try {
+      // Convert signature from hex to bytes
+      const signatureBytes = this._hexToBytes(signatureHex);
+
+      // Create signed transaction with the user's signature
+      const txnWithSig = {
+        txn: txn,
+        sig: signatureBytes,
+      };
+
+      // Encode as msgpack
+      return algosdk.encodeObj(txnWithSig);
+    } catch (error) {
+      console.error('Error reconstructing signed transaction:', error);
       throw error;
     }
+  }
+
+  /**
+   * Convert hex string to bytes
+   */
+  private _hexToBytes(hex: string): Uint8Array {
+    const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex;
+    const bytes = new Uint8Array(cleanHex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(cleanHex.substr(i * 2, 2), 16);
+    }
+    return bytes;
   }
 
   /**

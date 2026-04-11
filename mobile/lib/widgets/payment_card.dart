@@ -9,6 +9,7 @@ class PaymentCard extends StatelessWidget {
   final VoidCallback onCreatePayment;
   final String selectedCategory;
   final Function(String)? onCategoryChanged;
+  final VoidCallback? onScanQR;
 
   const PaymentCard({
     Key? key,
@@ -18,6 +19,7 @@ class PaymentCard extends StatelessWidget {
     required this.onCreatePayment,
     this.selectedCategory = 'electronics',
     this.onCategoryChanged,
+    this.onScanQR,
   }) : super(key: key);
 
   @override
@@ -104,18 +106,37 @@ class PaymentCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Merchant Input
-          TextField(
-            controller: merchantController,
-            enabled: !isLoading,
-            keyboardType: TextInputType.text,
-            style: const TextStyle(color: AppColors.white),
-            decoration: InputDecoration(
-              labelText: 'Recipient Address',
-              hintText: 'Enter merchant address or wallet',
-              prefixIcon: const Icon(Icons.store),
-              labelStyle: const TextStyle(color: AppColors.red),
-            ),
+          // Merchant Input with QR Button
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: merchantController,
+                  enabled: !isLoading,
+                  keyboardType: TextInputType.text,
+                  style: const TextStyle(color: AppColors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Recipient Address',
+                    hintText: 'Enter merchant address or wallet',
+                    prefixIcon: const Icon(Icons.store),
+                    labelStyle: const TextStyle(color: AppColors.red),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (onScanQR != null)
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.red,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    onPressed: isLoading ? null : onScanQR,
+                    icon: const Icon(Icons.qr_code_2, color: AppColors.white),
+                    tooltip: 'Scan QR Code',
+                  ),
+                ),
+            ],
           ),
         ],
       ),

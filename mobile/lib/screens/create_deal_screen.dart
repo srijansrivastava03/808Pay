@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'deal_qr_screen.dart';
+import 'qr_scanner_screen.dart';
 
 class CreateDealScreen extends StatefulWidget {
   const CreateDealScreen({Key? key}) : super(key: key);
@@ -175,42 +176,107 @@ class _CreateDealScreenState extends State<CreateDealScreen> {
 
         const SizedBox(height: 12),
 
-        // Counterparty Input Field
-        TextField(
-          controller: _counterpartyController,
-          keyboardType: TextInputType.text,
-          style: const TextStyle(
-            color: AppColors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Enter counterparty name or ID',
-            hintStyle: TextStyle(
-              color: AppColors.lightGrey,
-              fontSize: 14,
-            ),
-            filled: true,
-            fillColor: AppColors.grey,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: AppColors.red.withOpacity(0.3),
-                width: 1.5,
+        // Counterparty Input Field with QR Button
+        Row(
+          children: [
+            // Text input
+            Expanded(
+              child: TextField(
+                controller: _counterpartyController,
+                keyboardType: TextInputType.text,
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Enter counterparty name or ID',
+                  hintStyle: TextStyle(
+                    color: AppColors.lightGrey,
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.grey,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: AppColors.red.withOpacity(0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
               ),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
+            const SizedBox(width: 12),
+            // QR Scan Button
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.red,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                onPressed: _scanCounterpartyQR,
+                icon: const Icon(Icons.qr_code_2, color: AppColors.white),
+                tooltip: 'Scan QR Code',
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );
+  }
+
+  // ========== QR SCAN FOR COUNTERPARTY ==========
+  Future<void> _scanCounterpartyQR() async {
+    try {
+      print('📱 Launching QR scanner for counterparty...');
+      // Open QR scanner
+      final result = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const QRScannerScreen(),
+        ),
+      );
+
+      if (result != null && result.isNotEmpty) {
+        // Parse QR data (could be address or format: "address|name")
+        String counterparty = result;
+        if (result.contains('|')) {
+          // Extract address from "address|name" format
+          counterparty = result.split('|')[0].trim();
+        }
+
+        setState(() {
+          _counterpartyController.text = counterparty;
+        });
+
+        print('✅ Counterparty set: $counterparty');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Counterparty set: ${counterparty.substring(0, 16)}...'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ QR scan error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Scan failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // ========== NOTE INPUT FIELD ==========

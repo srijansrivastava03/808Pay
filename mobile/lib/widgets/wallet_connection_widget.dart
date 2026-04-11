@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/pera_wallet_service.dart';
+import '../services/pera_wallet_service_v2.dart';
 import '../theme/app_theme.dart';
 
 class WalletConnectionWidget extends StatefulWidget {
@@ -27,35 +27,30 @@ class _WalletConnectionWidgetState extends State<WalletConnectionWidget> {
   }
 
   Future<void> _initializeWallet() async {
-    final walletService = Provider.of<PeraWalletService>(context, listen: false);
+    final walletService = Provider.of<PeraWalletServiceV2>(context, listen: false);
     await walletService.initialize();
   }
 
   Future<void> _handleConnectWallet(BuildContext context) async {
-    final walletService = Provider.of<PeraWalletService>(context, listen: false);
+    final walletService = Provider.of<PeraWalletServiceV2>(context, listen: false);
 
     setState(() => _isLoading = true);
 
     try {
+      // Connect to Pera Wallet app
       await walletService.connectWallet();
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Connected: ${walletService.userAddress}'),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        widget.onConnected?.call();
+        // Show dialog asking user for wallet address
+        _showWalletAddressDialog(context, walletService);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to connect: $e'),
+            content: Text('Connection failed:\n$e'),
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -66,8 +61,109 @@ class _WalletConnectionWidgetState extends State<WalletConnectionWidget> {
     }
   }
 
+  void _showWalletAddressDialog(
+    BuildContext context,
+    PeraWalletServiceV2 walletService,
+  ) {
+    final addressController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.grey,
+        title: const Text(
+          'Enter Your Pera Wallet Address',
+          style: TextStyle(color: AppColors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'You should see your wallet address in the Pera app.',
+              style: TextStyle(color: AppColors.lightGrey, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: addressController,
+              style: const TextStyle(color: AppColors.white),
+              decoration: InputDecoration(
+                hintText: 'XXXXXX...XXXXXX (58 characters)',
+                hintStyle: const TextStyle(color: AppColors.lightGrey),
+                filled: true,
+                fillColor: AppColors.black,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.red),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.lightGrey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final address = addressController.text.trim();
+              if (address.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter your wallet address'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
+
+              if (address.length < 50) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Invalid address length (should be ~58 chars)'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
+
+              // Set the real wallet address
+              try {
+                walletService.setWalletAddress(address);
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text('✅ Wallet connected!\n${address.substring(0, 12)}...${address.substring(address.length - 8)}'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                widget.onConnected?.call();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleDisconnectWallet(BuildContext context) async {
-    final walletService = Provider.of<PeraWalletService>(context, listen: false);
+    final walletService = Provider.of<PeraWalletServiceV2>(context, listen: false);
 
     setState(() => _isLoading = true);
 
@@ -103,7 +199,7 @@ class _WalletConnectionWidgetState extends State<WalletConnectionWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PeraWalletService>(
+    return Consumer<PeraWalletServiceV2>(
       builder: (context, walletService, _) {
         if (walletService.isConnected) {
           return Container(

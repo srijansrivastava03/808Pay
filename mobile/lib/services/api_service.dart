@@ -3,13 +3,13 @@ import 'dart:convert';
 import '../models/transaction.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'http://10.33.4.72:3000/api';
 
   // Health check
   Future<bool> healthCheck() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/health'),
+        Uri.parse('http://10.33.4.72:3000/health'),
       ).timeout(const Duration(seconds: 5));
 
       return response.statusCode == 200;

@@ -14,6 +14,10 @@ dependencies:
 
   # QR Code
   qr_flutter: ^4.0.0
+  image_picker: ^1.0.0
+  
+  # Real-time QR Scanner
+  mobile_scanner: ^3.5.0
 
   # HTTP Client
   http: ^1.0.0
@@ -44,6 +48,13 @@ dependencies:
 
   # Connectivity
   connectivity_plus: ^5.0.0
+  
+  # Offline transaction queue storage
+  hive: ^2.0.0
+  hive_flutter: ^1.0.0
+  
+  # Algorand SDK utilities (for transaction formatting)
+  algorand_dart: ^1.0.3
 
   # Pera Wallet (via deep links)
   # Integration uses Pera's native deep link protocol

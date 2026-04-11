@@ -4,21 +4,53 @@ import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/payment_screen.dart';
 import 'screens/history_screen.dart';
-import 'services/pera_wallet_service.dart';
+import 'services/pera_wallet_service_v2.dart';
+import 'services/settlement_sync_service.dart';
+import 'services/transaction_queue_service.dart';
+import 'services/api_service.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize services
+  final queueService = TransactionQueueService();
+  await queueService.initialize();
+  
+  final apiService = ApiService();
+  final syncService = SettlementSyncService(
+    queueService: queueService,
+    apiService: apiService,
+  );
+  await syncService.initialize();
+  
+  runApp(MyApp(
+    queueService: queueService,
+    syncService: syncService,
+  ));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  final TransactionQueueService queueService;
+  final SettlementSyncService syncService;
+  
+  const MyApp({
+    Key? key,
+    required this.queueService,
+    required this.syncService,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (context) => PeraWalletService()..initialize(),
+          create: (context) => PeraWalletServiceV2(),
+        ),
+        Provider<TransactionQueueService>(
+          create: (context) => queueService,
+        ),
+        Provider<SettlementSyncService>(
+          create: (context) => syncService,
         ),
       ],
       child: MaterialApp(

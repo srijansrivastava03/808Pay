@@ -5,6 +5,7 @@ import '../widgets/tax_breakdown_widget.dart';
 import '../widgets/offline_status_widget.dart';
 import '../services/transaction_service.dart';
 import '../services/tax_service.dart';
+import 'qr_scanner_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({Key? key}) : super(key: key);
@@ -113,6 +114,38 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  Future<void> _scanMerchantQR() async {
+    try {
+      final result = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const QRScannerScreen(),
+        ),
+      );
+
+      if (result != null && result.isNotEmpty) {
+        String merchant = result;
+        if (result.contains('|')) {
+          merchant = result.split('|')[0].trim();
+        }
+
+        setState(() {
+          _merchantController.text = merchant;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Recipient set: ${merchant.substring(0, 16)}...'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      _showError('QR scan failed: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final amount = double.tryParse(_amountController.text) ?? 0;
@@ -155,6 +188,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     onCategoryChanged: (category) {
                       setState(() => _selectedCategory = category);
                     },
+                    onScanQR: _scanMerchantQR,
                   ),
                   const SizedBox(height: 30),
 
