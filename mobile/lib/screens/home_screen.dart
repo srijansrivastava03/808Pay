@@ -8,6 +8,7 @@ import '../models/transaction.dart';
 import '../services/pera_wallet_service_v2.dart';
 import '../services/settlement_sync_service.dart';
 import '../services/transaction_queue_service.dart';
+import '../services/balance_service.dart';
 import 'create_deal_screen.dart';
 import 'scan_sign_screen.dart';
 import 'deal_history_screen.dart';
@@ -21,7 +22,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Mock wallet balance
+  // Mock wallet balance (will be updated by BalanceService listener)
   double walletBalance = 6850.00;
   
   // Network status
@@ -34,12 +35,35 @@ class _HomeScreenState extends State<HomeScreen> {
     _connectivity = Connectivity();
     _checkNetworkStatus();
     
+    // Initialize balance from BalanceService
+    walletBalance = BalanceService.getDemoBalance();
+    
+    // Listen to balance changes
+    BalanceService.addListener(_onBalanceChanged);
+    
     // Listen to network changes
     _connectivity.onConnectivityChanged.listen((result) {
       setState(() {
         isOnline = result != ConnectivityResult.none;
       });
     });
+  }
+
+  @override
+  void dispose() {
+    // Remove balance listener
+    BalanceService.removeListener(_onBalanceChanged);
+    super.dispose();
+  }
+
+  /// Callback when balance changes
+  void _onBalanceChanged(double newBalance) {
+    if (mounted) {
+      setState(() {
+        walletBalance = newBalance;
+      });
+      print('🔄 Balance updated in UI: ₹${walletBalance.toStringAsFixed(2)}');
+    }
   }
 
   // Mock recent transactions

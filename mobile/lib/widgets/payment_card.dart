@@ -10,6 +10,7 @@ class PaymentCard extends StatelessWidget {
   final String selectedCategory;
   final Function(String)? onCategoryChanged;
   final VoidCallback? onScanQR;
+  final VoidCallback? onTapNFC;
 
   const PaymentCard({
     Key? key,
@@ -20,6 +21,7 @@ class PaymentCard extends StatelessWidget {
     this.selectedCategory = 'electronics',
     this.onCategoryChanged,
     this.onScanQR,
+    this.onTapNFC,
   }) : super(key: key);
 
   @override
@@ -124,6 +126,7 @@ class PaymentCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
+              // QR Button
               if (onScanQR != null)
                 Container(
                   decoration: BoxDecoration(
@@ -134,6 +137,20 @@ class PaymentCard extends StatelessWidget {
                     onPressed: isLoading ? null : onScanQR,
                     icon: const Icon(Icons.qr_code_2, color: AppColors.white),
                     tooltip: 'Scan QR Code',
+                  ),
+                ),
+              const SizedBox(width: 4),
+              // NFC Button
+              if (onTapNFC != null)
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.red.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    onPressed: isLoading ? null : onTapNFC,
+                    icon: const Icon(Icons.near_me, color: AppColors.white),
+                    tooltip: 'Tap NFC',
                   ),
                 ),
             ],

@@ -3,8 +3,11 @@ import '../theme/app_theme.dart';
 import '../widgets/payment_card.dart';
 import '../widgets/tax_breakdown_widget.dart';
 import '../widgets/offline_status_widget.dart';
+import '../widgets/nfc_confirmation_overlay.dart';
 import '../services/transaction_service.dart';
 import '../services/tax_service.dart';
+import '../services/nfc_transfer_service.dart';
+import '../services/balance_service.dart';
 import 'qr_scanner_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -70,6 +73,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
 
       if (mounted) {
+        // Update balance after successful payment signature
+        await BalanceService.updateBalanceAfterPayment(amount);
+        
         _showSuccess(
           'Payment signed offline! ✓\n\n'
           'Amount: ₹${amount.toStringAsFixed(2)}\n'
@@ -146,6 +152,55 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  Future<void> _handleNFCTap() async {
+    try {
+      final isAvailable = await NFCTransferService().isNFCAvailable;
+      if (!isAvailable) {
+        _showError('NFC not available on this device');
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📱 Tap another device with NFC...'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Start listening for NFC tag
+      final transferData = await NFCTransferService().readTransferData();
+      
+      if (transferData != null) {
+        // Show confirmation circle
+        if (mounted) {
+          showNFCConfirmation(
+            context: context,
+            message: 'From ${transferData.sender.substring(0, 12)}...\nTo ${transferData.recipient.substring(0, 12)}...\n${transferData.amount} ALGO',
+            onConfirm: () {
+              // Set the fields from NFC data
+              setState(() {
+                _merchantController.text = transferData.recipient;
+                _amountController.text = transferData.amount.toString();
+                _selectedCategory = transferData.category;
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✅ NFC Data loaded: ${transferData.recipient.substring(0, 16)}...'),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+          );
+        }
+      }
+    } catch (e) {
+      _showError('NFC scan failed: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final amount = double.tryParse(_amountController.text) ?? 0;
@@ -189,6 +244,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       setState(() => _selectedCategory = category);
                     },
                     onScanQR: _scanMerchantQR,
+                    onTapNFC: _handleNFCTap,
                   ),
                   const SizedBox(height: 30),
 

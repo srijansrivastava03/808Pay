@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../services/transaction_queue_service.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({Key? key}) : super(key: key);
@@ -10,46 +11,60 @@ class SyncScreen extends StatefulWidget {
 }
 
 class _SyncScreenState extends State<SyncScreen> {
-  // Mock pending transactions data
-  late List<Map<String, dynamic>> pendingTransactions;
+  late List<QueuedTransaction> pendingTransactions = [];
+  late List<Map<String, dynamic>> displayTransactions = [];
   bool _isSyncing = false;
   final ApiService _apiService = ApiService();
+  final TransactionQueueService _queueService = TransactionQueueService();
   int _syncedCount = 0;
   int _failedCount = 0;
 
   @override
   void initState() {
     super.initState();
-    pendingTransactions = [
-      {
-        'id': '1',
-        'amount': 50.00,
-        'receiver': 'John Doe',
-        'time': '2:30 PM',
-        'status': 'pending',
-      },
-      {
-        'id': '2',
-        'amount': 75.00,
-        'receiver': 'Sarah Smith',
-        'time': '1:15 PM',
-        'status': 'syncing',
-      },
-      {
-        'id': '3',
-        'amount': 45.00,
-        'receiver': 'Mike Johnson',
-        'time': '11:45 AM',
-        'status': 'completed',
-      },
-      {
-        'id': '4',
-        'amount': 30.00,
-        'receiver': 'Alex Kumar',
-        'time': '10:20 AM',
-        'status': 'failed',
-      },
-    ];
+    _initializeQueueService();
+  }
+
+  Future<void> _initializeQueueService() async {
+    await _queueService.initialize();
+    await _loadPendingTransactions();
+  }
+
+  Future<void> _loadPendingTransactions() async {
+    try {
+      final pending = await _queueService.getPendingTransactions();
+      setState(() {
+        pendingTransactions = pending;
+        displayTransactions = pending
+            .map((t) => {
+                  'id': t.id,
+                  'amount': double.tryParse(t.amount) ?? 0.0,
+                  'receiver': t.receiver,
+                  'dealId': t.dealId,
+                  'time': _formatTime(t.createdAt),
+                  'status': 'pending',
+                  'transaction': t,
+                })
+            .toList();
+      });
+    } catch (e) {
+      print('❌ Error loading pending transactions: $e');
+    }
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+    
+    if (diff.inMinutes < 1) {
+      return 'just now';
+    } else if (diff.inHours < 1) {
+      return '${diff.inMinutes}m ago';
+    } else if (diff.inDays < 1) {
+      return '${diff.inHours}h ago';
+    } else {
+      return dateTime.toLocal().toString().split(' ')[0];
+    }
   }
 
   @override
@@ -90,7 +105,7 @@ class _SyncScreenState extends State<SyncScreen> {
                   const SizedBox(height: 40),
 
                   // Pending Transactions List or Empty State
-                  pendingTransactions.isEmpty
+                  displayTransactions.isEmpty
                       ? _buildEmptyState()
                       : _buildTransactionsList(),
 
@@ -98,6 +113,11 @@ class _SyncScreenState extends State<SyncScreen> {
 
                   // Sync Now Button
                   _buildSyncButton(),
+
+                  const SizedBox(height: 16),
+
+                  // Clear Queue Button
+                  _buildClearQueueButton(),
 
                   const SizedBox(height: 40),
                 ],
@@ -111,6 +131,10 @@ class _SyncScreenState extends State<SyncScreen> {
 
   // ========== SUMMARY CARD SECTION ==========
   Widget _buildSummaryCard() {
+    final totalAmount = displayTransactions
+        .fold<double>(0, (sum, t) => sum + (t['amount'] as double));
+    final pendingCount = displayTransactions.length;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -126,7 +150,7 @@ class _SyncScreenState extends State<SyncScreen> {
         children: [
           // Pending Transactions
           Text(
-            '3 Pending',
+            '$pendingCount ${pendingCount == 1 ? 'Transaction' : 'Transactions'} Pending',
             style: const TextStyle(
               color: AppColors.white,
               fontSize: 16,
@@ -168,9 +192,9 @@ class _SyncScreenState extends State<SyncScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const Text(
-                '170',
-                style: TextStyle(
+              Text(
+                totalAmount.toStringAsFixed(0),
+                style: const TextStyle(
                   color: AppColors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -204,7 +228,7 @@ class _SyncScreenState extends State<SyncScreen> {
 
         // Transaction Items
         Column(
-          children: pendingTransactions.map((transaction) {
+          children: displayTransactions.map((transaction) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _buildTransactionItem(transaction),
@@ -441,9 +465,9 @@ class _SyncScreenState extends State<SyncScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isSyncing ? null : _syncNow,
+        onPressed: _isSyncing || displayTransactions.isEmpty ? null : _syncNow,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _isSyncing ? AppColors.grey : AppColors.red,
+          backgroundColor: (_isSyncing || displayTransactions.isEmpty) ? AppColors.grey : AppColors.red,
           foregroundColor: AppColors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
@@ -462,6 +486,118 @@ class _SyncScreenState extends State<SyncScreen> {
     );
   }
 
+  // ========== CLEAR QUEUE BUTTON ==========
+  Widget _buildClearQueueButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: displayTransactions.isEmpty ? null : _showClearQueueDialog,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: displayTransactions.isEmpty ? AppColors.grey : Colors.transparent,
+          foregroundColor: AppColors.red,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: displayTransactions.isEmpty ? AppColors.grey : AppColors.red,
+              width: 2,
+            ),
+          ),
+          elevation: 0,
+        ),
+        child: const Text(
+          'Clear Queue',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showClearQueueDialog() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        backgroundColor: AppColors.grey,
+        title: const Text(
+          'Clear Transaction Queue?',
+          style: TextStyle(
+            color: AppColors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'This will delete ${displayTransactions.length} pending transaction(s) and prevent auto-sync. You cannot undo this action.',
+          style: const TextStyle(
+            color: AppColors.lightGrey,
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.lightGrey),
+            ),
+          ),
+          TextButton(
+            onPressed: _clearQueue,
+            child: const Text(
+              'Clear',
+              style: TextStyle(
+                color: AppColors.red,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _clearQueue() async {
+    try {
+      Navigator.pop(context); // Close dialog
+      
+      await _queueService.clearPendingTransactions();
+      
+      setState(() {
+        displayTransactions.clear();
+        pendingTransactions.clear();
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Transaction queue cleared'),
+            duration: Duration(seconds: 2),
+            backgroundColor: AppColors.red,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(16),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error clearing queue: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error clearing queue: $e'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   // ========== SYNC NOW LOGIC ==========
   Future<void> _syncNow() async {
     // Reset counters
@@ -471,17 +607,17 @@ class _SyncScreenState extends State<SyncScreen> {
     // Step 1: Set all pending transactions to "syncing"
     setState(() {
       _isSyncing = true;
-      for (var transaction in pendingTransactions) {
+      for (var transaction in displayTransactions) {
         if (transaction['status'] == 'pending') {
           transaction['status'] = 'syncing';
         }
       }
     });
 
-    print('🔄 Starting sync for ${pendingTransactions.length} transactions...');
+    print('🔄 Starting sync for ${displayTransactions.length} transactions...');
 
     // Step 2: Process each transaction
-    for (var transaction in pendingTransactions) {
+    for (var transaction in displayTransactions) {
       if (transaction['status'] == 'syncing') {
         await _settleTransaction(transaction);
       }
@@ -496,7 +632,10 @@ class _SyncScreenState extends State<SyncScreen> {
 
     print('✓ Sync completed! Synced: $_syncedCount, Failed: $_failedCount');
 
-    // Step 4: Show completion summary
+    // Step 4: Reload pending transactions
+    await _loadPendingTransactions();
+
+    // Step 5: Show completion summary
     if (mounted) {
       final message = _failedCount == 0
           ? '✓ All transactions synced successfully!'
@@ -520,22 +659,21 @@ class _SyncScreenState extends State<SyncScreen> {
   // ========== SETTLE INDIVIDUAL TRANSACTION ==========
   Future<void> _settleTransaction(Map<String, dynamic> transaction) async {
     try {
-      // Prepare settlement data
-      final settlementData = {
-        'transactionId': transaction['id'],
-        'amount': transaction['amount'],
-        'receiver': transaction['receiver'],
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+      final queuedTxn = transaction['transaction'] as QueuedTransaction;
 
-      // Call backend API
+      print('📤 Submitting transaction: ${queuedTxn.id}');
+
+      // Call backend with real signatures
       final response = await _apiService.settlePayment(
-        data: settlementData.toString(),
-        signature: 'mock_signature', // In real app, this would be from wallet
-        publicKey: 'mock_public_key', // In real app, this would be from wallet
+        data: queuedTxn.data,
+        signature: queuedTxn.signature,
+        publicKey: queuedTxn.publicKey,
       );
 
-      print('✓ Transaction ${transaction['id']} settled: $response');
+      print('✓ Transaction ${queuedTxn.id} settled: $response');
+
+      // Mark as submitted in queue service
+      await _queueService.markAsSubmitted(queuedTxn.id);
 
       // Update transaction status on success
       setState(() {

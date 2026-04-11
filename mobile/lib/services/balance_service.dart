@@ -1,10 +1,19 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+/// Balance Service Callback for UI updates
+typedef BalanceUpdateCallback = void Function(double newBalance);
+
 /// Balance Service
 /// Handles user balance checking and validation
 class BalanceService {
   static const String baseUrl = 'http://localhost:3000/api';
+  
+  /// Listeners for balance changes
+  static final List<BalanceUpdateCallback> _listeners = [];
+  
+  /// Current cached balance for demo
+  static double _demoBalance = 6850.00;
 
   /// Get user's current balance from backend
   /// In production: Queries Algorand blockchain
@@ -17,15 +26,17 @@ class BalanceService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return (data['balance'] ?? 1000).toDouble();
+        final balance = (data['balance'] ?? 1000).toDouble();
+        _demoBalance = balance;
+        return balance;
       }
 
       // Default balance for testing
-      return 1000.0;
+      return _demoBalance;
     } catch (e) {
       print('❌ Balance check failed: $e');
       // Default balance if offline/error
-      return 1000.0;
+      return _demoBalance;
     }
   }
 
@@ -106,6 +117,52 @@ class BalanceService {
   /// Clear cache
   static void clearCache() {
     _balanceCache.clear();
+  }
+
+  // ==================== NEW: Balance Update Methods ====================
+
+  /// Get current demo balance (for UI display)
+  static double getDemoBalance() {
+    return _demoBalance;
+  }
+
+  /// Update balance after outgoing payment (subtract amount)
+  static Future<void> updateBalanceAfterPayment(double amount) async {
+    _demoBalance -= amount;
+    if (_demoBalance < 0) _demoBalance = 0;
+    print('💰 Balance updated after payment: ₹${_demoBalance.toStringAsFixed(2)}');
+    _notifyListeners(_demoBalance);
+  }
+
+  /// Update balance after receiving payment (add amount)
+  static Future<void> updateBalanceAfterReceiving(double amount) async {
+    _demoBalance += amount;
+    print('💰 Balance updated after receiving: ₹${_demoBalance.toStringAsFixed(2)}');
+    _notifyListeners(_demoBalance);
+  }
+
+  /// Set balance directly
+  static Future<void> setBalance(double amount) async {
+    _demoBalance = amount;
+    print('💰 Balance set to: ₹${_demoBalance.toStringAsFixed(2)}');
+    _notifyListeners(_demoBalance);
+  }
+
+  /// Subscribe to balance changes
+  static void addListener(BalanceUpdateCallback callback) {
+    _listeners.add(callback);
+  }
+
+  /// Unsubscribe from balance changes
+  static void removeListener(BalanceUpdateCallback callback) {
+    _listeners.remove(callback);
+  }
+
+  /// Notify all listeners of balance change
+  static void _notifyListeners(double newBalance) {
+    for (var listener in _listeners) {
+      listener(newBalance);
+    }
   }
 
   /// Get balance summary for UI display
