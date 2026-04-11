@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../theme/app_theme.dart';
 import '../widgets/quick_action_button.dart';
 import '../widgets/wallet_connection_widget.dart';
@@ -10,6 +11,7 @@ import '../services/transaction_queue_service.dart';
 import 'create_deal_screen.dart';
 import 'scan_sign_screen.dart';
 import 'deal_history_screen.dart';
+import 'account_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -21,6 +23,24 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // Mock wallet balance
   double walletBalance = 6850.00;
+  
+  // Network status
+  bool isOnline = true;
+  late Connectivity _connectivity;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectivity = Connectivity();
+    _checkNetworkStatus();
+    
+    // Listen to network changes
+    _connectivity.onConnectivityChanged.listen((result) {
+      setState(() {
+        isOnline = result != ConnectivityResult.none;
+      });
+    });
+  }
 
   // Mock recent transactions
   List<Transaction> mockTransactions = [
@@ -216,6 +236,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Check network status
+  Future<void> _checkNetworkStatus() async {
+    final result = await _connectivity.checkConnectivity();
+    if (mounted) {
+      setState(() {
+        isOnline = result != ConnectivityResult.none;
+      });
+    }
+  }
+
   // ========== HEADER SECTION ==========
   Widget _buildHeader() {
     return Container(
@@ -263,26 +293,70 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
 
-            // Right: Profile Icon
-            GestureDetector(
-              onTap: () => print('Profile tapped'),
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.grey,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.red.withOpacity(0.2),
-                    width: 1,
+            // Right: Network Status + Profile Icon
+            Row(
+              children: [
+                // Network Status Indicator with Text
+                Tooltip(
+                  message: isOnline ? 'Network Online' : 'Network Offline',
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: isOnline ? Colors.green : Colors.red,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isOnline ? Colors.green : Colors.red).withOpacity(0.5),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isOnline ? 'online' : 'offline',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isOnline ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: const Icon(
-                  Icons.person,
-                  color: AppColors.lightGrey,
-                  size: 24,
+
+                const SizedBox(width: 16),
+
+                // Profile Icon
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AccountScreen()),
+                    );
+                  },
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.grey,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.red.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      color: AppColors.lightGrey,
+                      size: 24,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -371,43 +445,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: FutureBuilder<int>(
-                  future: _getPendingTransactionCount(),
-                  builder: (context, snapshot) {
-                    final pendingCount = snapshot.data ?? 0;
-                    return Stack(
-                      children: [
-                        QuickActionButton(
-                          icon: actions[3]['icon'] as IconData,
-                          label: pendingCount > 0 
-                            ? '${actions[3]['label']}\n($pendingCount)' 
-                            : actions[3]['label'] as String,
-                          onTap: () => _handleQuickAction(actions[3]['label'] as String),
-                          height: 90,
-                        ),
-                        if (pendingCount > 0)
-                          Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppColors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                '$pendingCount',
-                                style: const TextStyle(
-                                  color: AppColors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
+                child: QuickActionButton(
+                  icon: actions[3]['icon'] as IconData,
+                  label: actions[3]['label'] as String,
+                  onTap: () => _handleQuickAction(actions[3]['label'] as String),
+                  height: 90,
                 ),
               ),
             ],
@@ -415,17 +457,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-  }
-
-  Future<int> _getPendingTransactionCount() async {
-    try {
-      final queueService = Provider.of<TransactionQueueService>(context, listen: false);
-      final pending = await queueService.getPendingTransactions();
-      return pending.length;
-    } catch (e) {
-      print('Error getting pending count: $e');
-      return 0;
-    }
   }
 
   // ========== RECENT TRANSACTIONS SECTION ==========
